@@ -1,4 +1,4 @@
-import { parseArgs } from "jsr:@std/cli/parse-args";
+import { parseArgs } from "jsr:@std/cli@0.224.5/parse-args";
 
 const args = parseArgs(Deno.args);
 
@@ -11,7 +11,7 @@ if (args.help) {
   Deno.exit(0);
 }
 
-const forward = args._ ?? [];
+const forward: string[] = args._?.map((arg) => arg.toString()) ?? [];
 
 const cmd = new Deno.Command(Deno.execPath(), {
   args: ["--strace-ops", ...forward],
@@ -33,11 +33,18 @@ const stderr = Deno.openSync(args.stderr ?? "stderr.log", {
 
 const decoder = new TextDecoder();
 
+type StraceLog = {
+  timestamp: string;
+  op: string;
+  completed: boolean;
+  type: string;
+};
+
 //[    29.721] op_run_microtasks                                  : Completed Slow
 //[    29.721] op_bootstrap_no_color                              : Dispatched Slow
 //[    29.721] op_bootstrap_no_color                              : Completed Slow
 //[    29.721] op_bootstrap_is_stdout_tty                         : Dispatched Slow
-function parseStraceLine(log: string) {
+function parseStraceLine(log: string): StraceLog | undefined {
   const timestampEnd = log.indexOf("]");
   if (timestampEnd === -1) {
     return;
@@ -72,7 +79,7 @@ function parseStraceLine(log: string) {
   };
 }
 
-const logs = [];
+const logs: StraceLog[] = [];
 function renderStraceAggregated() {
   const dispatchOps = new Map();
   const completedOps = new Map();
@@ -130,17 +137,19 @@ function fastTableWithPadding(data: any[]) {
   }
 }
 
-function writeStreamLog(stream: Deno.File, chunk: Uint8Array) {
+function writeStreamLog(stream: Deno.Writer & Deno.Closer) {
   return new WritableStream({
-    write(chunk) {
+    async write(chunk) {
       const text = decoder.decode(chunk);
       const lines = text.split("\n");
       for (const line of lines) {
-        logs.push(parseStraceLine(line) ?? {});
+	const log = parseStraceLine(line);
+	if (log == undefined) continue;
+        logs.push(log);
       }
 
       renderStraceAggregated();
-      return stream.write(chunk);
+      await stream.write(chunk);
     },
     close() {
       stream.close();
