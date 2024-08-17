@@ -1,0 +1,5 @@
+{
+  "name": "@divy/tracer",
+  "version": "0.1.0",
+  "exports": "./deno_tracer.ts"
+}
