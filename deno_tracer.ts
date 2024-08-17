@@ -3,7 +3,7 @@ import { parseArgs } from "jsr:@std/cli/parse-args";
 const args = parseArgs(Deno.args);
 
 if (args.help) {
-  console.log("Usage: demon [options] <args>");
+  console.log("Usage: deno_tracer [options] <args>");
   console.log("Options:");
   console.log("  --help    Show this help message");
   console.log("  --stdout  Redirect stdout to a file");
